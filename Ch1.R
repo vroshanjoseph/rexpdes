@@ -1,4 +1,13 @@
-#different objectives of experiment
+################
+#Chapter 1: Introduction
+#Copyright: V. Roshan Joseph
+#Please cite: V. R. Joseph (2025). Experimental Design for Data Science and Engineering. CRC Press.
+############
+#Section 1.2
+############
+
+#Figure 1.4: different objectives of experiment
+
 par(mar=c(5,5,4,2))
 par(mfrow=c(2,2))
 x=seq(0,1,length=301)
@@ -21,8 +30,6 @@ D0=((1:n2)-.5)/n2
 D=c(D0,qbeta(((1:n1)-.5)/n1,2,10))
 points(cbind(D,min(y)-.05),pch=16,cex=2,lwd=3,col="blue")
 
-
-
 library(support)
 y=2/3*dbeta(x,2,10)+1/3*dbeta(x,10,2)
 plot(x,y,type="l",axes=FALSE,xlab="",ylab="",lwd=3,col=1,ylim=c(min(y)-.05,max(y)),main="uncertainty propagation",cex.main=3)
@@ -33,9 +40,14 @@ D=a$sp
 points(cbind(D,min(y)-.05),pch=16,cex=2,lwd=3,col="blue")
 par(mfrow=c(1,1))
 
-#linear regression vs GP
-set.seed(1)
-n=10
+############
+#Section 1.3
+############
+
+#Figure 1.5: linear regression vs GP
+
+set.seed(7)
+n=6
 x=rep(c(0,1),c(n/2,n/2))
 f=function(x){
   x=(x+.2)/1.4
@@ -46,9 +58,10 @@ f=function(x) sin(10*pi*x)/(1+64*(x-.25)^2)+x^2
 
 y=f(x)+.1*rnorm(n)
 
+
 par(mfrow=c(1,2))
-l=-.1
-u=1.1
+l=-.25
+u=1.25
 test=seq(l,u,.001)
 truey=f(test)
 plot(test,truey,type="l",xlim=c(l,u),ylim=c(-.5,1.5),main="Linear regression",xlab="x",ylab="y",cex.main=2,cex.lab=2)
