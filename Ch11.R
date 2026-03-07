@@ -72,12 +72,12 @@ rmse.GP[i,1]=sqrt(mean((test$y-pred)^2))
 #selected factors
 sel=first(X=train[,-9],y=train[,9])
 sel=(sel>0)
-a=randomForest(x=train[,sel],y=train[,9])
-pred=predict(a,test[,sel])
+a=randomForest(x=train[,-9][,sel],y=train[,9])
+pred=predict(a,test[,-9][,sel])
 rmse.RF[i,2]=sqrt(mean((test$y-pred)^2))
 
-a=Fit.Kriging(X=train[,sel], y=train[,9], interpolation = FALSE, kernel.parameters = list(type="Gaussian"))
-pred=Predict.Kriging(a,test[,sel])$mean
+a=Fit.Kriging(X=train[,-9][,sel], y=train[,9], interpolation = FALSE, kernel.parameters = list(type="Gaussian"))
+pred=Predict.Kriging(a,test[,-9][,sel])$mean
 rmse.GP[i,2]=sqrt(mean((test$y-pred)^2))
 }
 par(mar=c(5,5,4,2))
