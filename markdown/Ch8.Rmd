@@ -1,0 +1,201 @@
+---
+title: "Chapter 8: Fractional Factorial Designs"
+author: "Youngseo Cho"
+date: "`r Sys.Date()`"
+output:
+  pdf_document:
+    toc: true
+    number_sections: true
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE, warning = FALSE, message = FALSE,
+                      fig.width = 10, fig.height = 6)
+```
+
+# Introduction
+
+This chapter covers fractional factorial designs, Bayesian-inspired designs, and mixture designs.
+
+**Citation**: V. R. Joseph (2026). *Experimental Design for Data Science and Engineering*. CRC Press.
+
+```{r libraries, message=FALSE}
+library(rkriging)
+library(HiGarrote)
+```
+
+# Section 8.1: Two-level Designs
+
+## Half-normal Plot
+
+```{r halfnormal, fig.width=8, fig.height=7}
+A <- rep(c(-1, 1), c(4, 4))
+B <- rep(rep(c(-1, 1), c(2, 2)), 2)
+C <- rep(c(-1, 1), 4)
+D <- A * B * C
+
+y <- c(504, 984, 928, 808, 992, 784, 464, 976)
+a <- lm(y ~ (A + B + C)^3)
+
+eff <- a$coef[-1]
+names(eff) <- c("1", "2", "3", "12", "13", "23", "123")
+I <- length(eff)
+u <- qnorm(0.5 + 0.5 * (1:I - 0.5) / I)
+saeff <- sort(abs(eff))
+
+par(mar = c(5, 5, 4, 2))
+plot(u, saeff, type = "n", xlab = "Half-normal Quantiles",
+     ylab = "Absolute Coefficients", main = "Half-normal Plot",
+     cex.main = 2.5, cex.axis = 1.5, cex.lab = 1.5, xlim = c(0, max(u) + 0.1))
+text(u, saeff, names(saeff), cex = 1.5, col = c(rep(4, 4), rep(2, 3)))
+```
+
+# Section 8.2: Bayesian-inspired Designs
+
+## Bayesian Half-normal Plot with HiGarrote
+
+```{r bayesian_halfnormal, fig.width=8, fig.height=7}
+d <- cbind(A, B, C, D)
+a <- Fit.Kriging(d, y, kernel.parameters = list(type = "Gaussian"))
+theta <- Get.Kriging.Parameters(a)$lengthscale
+mu <- Get.Kriging.Parameters(a)$mu
+gam <- (1 - exp(-2^2 / (2 * theta))) / (1 + exp(-2^2 / (2 * theta)))
+
+X <- model.matrix(lm(y ~ (A + B + C + D)^4), data = data.frame(A, B, C, D))
+G <- diag(c(model.matrix(lm(1 ~ (gam[1] + gam[2] + gam[3] + gam[4])^4))))
+alpha <- G %*% t(X) %*% solve(X %*% G %*% t(X)) %*% (y - mu)
+eff <- alpha[-1]
+names(eff) <- c("1", "2", "3", "4", "12", "13", "14", "23", "24", "34",
+                "123", "124", "134", "234", "1234")
+I <- length(eff)
+u <- qnorm(0.5 + 0.5 * (1:I - 0.5) / I)
+saeff <- sort(abs(eff))
+
+par(mar = c(5, 5, 4, 2))
+plot(u, saeff, type = "n", xlab = "Half-normal Quantiles",
+     ylab = "Absolute Coefficients", main = "Bayesian Half-normal Plot",
+     cex.main = 2.5, cex.axis = 1.5, cex.lab = 1.5, xlim = c(0, max(u) + 0.1))
+size <- c(rep(1.2, 12), rep(1.5, 3))
+text(u, saeff, names(saeff), cex = size, col = c(rep(4, 12), rep(2, 3)))
+```
+
+## HiGarrote Variable Selection
+
+```{r higarrote}
+cat("HiGarrote Results:\n")
+print(HiGarrote(d, y))
+```
+
+# Section 8.3: Designs with More than Two Levels
+
+## Orthogonal Arrays (L9, L18)
+
+```{r orthogonal_array}
+library(DoE.base)
+library(SFDesign)
+library(twinning)
+
+full <- full.factorial(4, 3)
+
+# L9 with two replicates
+D <- undesign(oa.design(nfactors = 4, nlevels = 3, randomize = FALSE))
+D <- data.matrix(D)
+D1 <- rbind(D, D)
+D1 <- (D1 - 1) / 2
+mp1 <- maxpro.crit(D1, delta = 1/3^2) / 3^2
+en1 <- energy(full, D1)
+
+# L18
+D <- undesign(oa.design(ID = L18, randomize = FALSE))
+D <- data.matrix(D)
+D2 <- D[, 2:5]
+D2 <- (D2 - 1) / 2
+mp2 <- maxpro.crit(D2, delta = 1/3^2) / 3^2
+en2 <- energy(full, D2)
+
+cat("L9 (2 reps): MaxPro =", round(mp1, 4), ", Energy =", round(en1, 4), "\n")
+cat("L18: MaxPro =", round(mp2, 4), ", Energy =", round(en2, 4), "\n")
+```
+
+# Section 8.4: Mixture Designs
+
+## Simplex-Lattice and Simplex-Centroid Designs
+
+```{r mixture_designs, fig.width=12, fig.height=6}
+library(mixexp)
+library(Ternary)
+
+D1 <- SLD(3, 2)
+D2 <- SCD(3)
+
+par(mar = c(0.1, 0.1, 0.1, 0.1))
+par(mfrow = c(1, 2))
+
+TernaryPlot(axis.labels = seq(0, 1, by = 0.1),
+            atip = expression(x[1]), btip = expression(x[3]), ctip = expression(x[2]),
+            alab = "Fraction x1", blab = "Fraction x3", clab = "Fraction x2",
+            lab.cex = 1, tip.cex = 2)
+TernaryPoints(D1, cex = 3, col = 4, pch = 16)
+
+TernaryPlot(axis.labels = seq(0, 1, by = 0.1),
+            atip = expression(x[1]), btip = expression(x[3]), ctip = expression(x[2]),
+            alab = "Fraction x1", blab = "Fraction x3", clab = "Fraction x2",
+            lab.cex = 1, tip.cex = 2)
+TernaryPoints(D2, cex = 3, col = 4, pch = 16)
+
+par(mfrow = c(1, 1))
+```
+
+## Support Points on Simplex
+
+```{r support_simplex, fig.width=12, fig.height=6}
+library(spacefillr)
+library(support)
+
+p <- 3
+N <- 10000
+u <- generate_sobol_set(N, p - 1)
+x <- matrix(0, nrow = N, ncol = p)
+x[, 1] <- (1 - u[, 1]^(1/2))
+x[, 2] <- u[, 1]^(1/2) * (1 - u[, 2])
+x[, 3] <- u[, 1]^(1/2) * u[, 2]
+
+set.seed(1)
+n <- 11
+D1 <- sp(n, p, dist.samp = x)$sp
+
+par(mar = c(0.1, 0.1, 0.1, 0.1))
+par(mfrow = c(1, 2))
+
+# Full simplex
+TernaryPlot(axis.labels = seq(0, 1, by = 0.1),
+            atip = expression(x[1]), btip = expression(x[3]), ctip = expression(x[2]),
+            alab = "Fraction x1", blab = "Fraction x3", clab = "Fraction x2",
+            lab.cex = 1, tip.cex = 2)
+TernaryPoints(D1, cex = 3, col = 4, pch = 16)
+
+# Constrained region
+CAND <- x
+C1 <- (x[, 1] + x[, 2] < 0.7)
+C2 <- (x[, 1] + x[, 2] > 0.3)
+CAND <- CAND[C1 & C2, ]
+D2 <- sp(n, p, dist.samp = CAND)$sp
+
+TernaryPlot(axis.labels = seq(0, 1, by = 0.1),
+            atip = expression(x[1]), btip = expression(x[3]), ctip = expression(x[2]),
+            alab = "Fraction x1", blab = "Fraction x3", clab = "Fraction x2",
+            lab.cex = 1, tip.cex = 2)
+TernaryPoints(D2, cex = 3, col = 4, pch = 16)
+
+par(mfrow = c(1, 1))
+```
+
+# Summary
+
+This chapter covered:
+
+1. **Two-level fractional factorial designs** with half-normal plots
+2. **Bayesian-inspired designs** using Kriging priors and HiGarrote
+3. **Orthogonal arrays** (L9, L18) for multi-level factors
+4. **Mixture designs** including SLD, SCD, and support points on simplex
+
