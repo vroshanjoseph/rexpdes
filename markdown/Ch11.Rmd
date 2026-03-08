@@ -83,7 +83,7 @@ library(SPlit)
 library(randomForest)
 library(rkriging)
 
-concrete <- read.csv(file = "../../datasets/Concrete_Data.csv", fileEncoding = "UTF-8-BOM")
+concrete <- read.csv(file = "../datasets/Concrete_Data.csv", fileEncoding = "UTF-8-BOM")
 concrete.scale <- data.frame(scale(concrete))
 
 set.seed(123)
@@ -140,7 +140,7 @@ par(mfrow = c(1, 1))
 ```{r twingp, fig.width=10, fig.height=7}
 library(twingp)
 
-wind <- read.csv("../../datasets/wind10.csv", header = TRUE)
+wind <- read.csv("../datasets/wind10.csv", header = TRUE)
 D <- as.matrix(wind[, -1])
 ev <- seq(min(D[, 1]), max(D[, 1]), length = 1000)
 
