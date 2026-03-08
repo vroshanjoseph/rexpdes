@@ -1,0 +1,275 @@
+---
+title: "Chapter 3: Optimal Designs for Gaussian Processes"
+author: "Youngseo Cho"
+date: "`r Sys.Date()`"
+output:
+  pdf_document:
+    toc: true
+    number_sections: true
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE, warning = FALSE, message = FALSE,
+                      fig.width = 10, fig.height = 6)
+```
+
+# Introduction
+
+This chapter covers optimal design criteria for Gaussian processes including IMSE, MMSE, and maximum entropy designs.
+
+**Citation**: V. R. Joseph (2026). *Experimental Design for Data Science and Engineering*. CRC Press.
+
+# Design Criteria Functions
+
+```{r design_functions}
+# IMSE (Integrated Mean Squared Error)
+imse <- function(D) {
+  E <- as.matrix(dist(D))
+  R <- exp(-(E / theta)^2)
+  L <- chol(R + 10^(-6) * diag(n))
+  r <- function(x) exp(-((x - D) / theta)^2)
+  s <- function(x) {
+    a <- forwardsolve(t(L), r(x))
+    return(1 - sum(a^2))
+  }
+  val <- integrate(Vectorize(s), 0, 1, abs.tol = 10^(-10))$val
+  return(val)
+}
+
+# MMSE (Maximum Mean Squared Error)
+mmse <- function(D) {
+  E <- as.matrix(dist(D))
+  R <- exp(-(E / theta)^2)
+  L <- chol(R + 10^(-6) * diag(n))
+  r <- function(x) exp(-((x - D) / theta)^2)
+  s <- function(x) {
+    a <- forwardsolve(t(L), r(x))
+    return(1 - sum(a^2))
+  }
+  test <- seq(0, 1, length = 1001)
+  val <- apply(cbind(test), 1, s)
+  return(max(val))
+}
+
+# Entropy
+ent <- function(D) {
+  E <- as.matrix(dist(D))
+  R <- exp(-(E / theta)^2)
+  val <- det(R)
+  return(val)
+}
+negent <- function(D) -ent(D)
+```
+
+# Random Design Examples
+
+```{r random_designs, fig.width=14, fig.height=5}
+p <- 2
+n <- 7
+
+par(mar = c(5, 5, 4, 2))
+par(mfrow = c(1, 3))
+
+ind <- c(9, 45, 31)
+for (i in 1:3) {
+  set.seed(ind[i])
+  D <- matrix(runif(n * p), nrow = n, ncol = p)
+  plot(D, xlim = c(0, 1), ylim = c(0, 1), xlab = expression(x[1]),
+       ylab = expression(x[2]), cex.lab = 2, cex.axis = 1.5,
+       pch = 16, col = "blue", cex = 4, main = paste("Random Design", i))
+}
+
+par(mfrow = c(1, 1))
+```
+
+# RMSE Comparison of Different Designs
+
+```{r rmse_comparison, fig.width=12, fig.height=10}
+n <- 10
+theta <- 0.1
+N <- 301
+test <- seq(0, 1, length = N)
+
+r <- function(x) exp(-((x - D) / theta)^2)
+s <- function(x) {
+  a <- forwardsolve(t(L), r(x))
+  return(sqrt(max(1 - sum(a^2), 0)))
+}
+
+par(mfrow = c(2, 2))
+
+# 1. Equi-spaced design
+D <- D1 <- ((1:n) - 1) / (n - 1)
+E <- as.matrix(dist(D1))
+R <- exp(-(E / theta)^2)
+L <- chol(R + 10^(-6) * diag(n))
+sa <- apply(cbind(test), 1, s)
+plot(test, sa, type = "l", xlab = "x", ylab = "RMSE", ylim = c(0, 0.7),
+     main = "Equi-spaced Design", cex.main = 2, cex.lab = 1.5, cex.axis = 1.5, lwd = 3)
+points(cbind(D1, 0), pch = 16, col = "blue", cex = 3)
+imse_value <- imse(D1)
+text(0.2, 0.7, paste0("IMSE=", round(imse_value, 4)), cex = 1.5, col = 2)
+mmse_value <- mmse(D1)
+text(0.8, 0.7, paste0("MMSE=", round(mmse_value, 4)), cex = 1.5, col = 3)
+
+# 2. Chebyshev design
+d <- cos((2 * (1:n) - 1) / (2 * n) * pi)
+D <- D2 <- (d + 1) / 2
+E <- as.matrix(dist(D2))
+R <- exp(-(E / theta)^2)
+L <- chol(R + 10^(-6) * diag(n))
+sa <- apply(cbind(test), 1, s)
+plot(test, sa, type = "l", xlab = "x", ylab = "RMSE", ylim = c(0, 0.7),
+     main = "Chebyshev Design", cex.main = 2, cex.lab = 1.5, cex.axis = 1.5, lwd = 3)
+points(cbind(D2, 0), pch = 16, col = "blue", cex = 3)
+imse_value <- imse(D2)
+text(0.2, 0.7, paste0("IMSE=", round(imse_value, 4)), cex = 1.5, col = 2)
+mmse_value <- mmse(D2)
+text(0.8, 0.7, paste0("MMSE=", round(mmse_value, 4)), cex = 1.5, col = 3)
+
+# 3. IMSE-optimal design
+D0 <- ((1:n) - 0.5) / n
+a <- optim(D0, imse, lower = rep(0, n), upper = rep(1, n), method = "L-BFGS-B")
+D <- D3 <- a$par
+E <- as.matrix(dist(D3))
+R <- exp(-(E / theta)^2)
+L <- chol(R + 10^(-6) * diag(n))
+sa <- apply(cbind(test), 1, s)
+plot(test, sa, type = "l", xlab = "x", ylab = "RMSE", ylim = c(0, 0.7),
+     main = "IMSE-optimal Design", cex.main = 2, cex.lab = 1.5, cex.axis = 1.5, lwd = 3)
+points(cbind(D3, 0), pch = 16, col = "blue", cex = 3)
+imse_value <- imse(D3)
+text(0.2, 0.7, paste0("IMSE=", round(imse_value, 4)), cex = 1.5, col = 2)
+mmse_value <- mmse(D3)
+text(0.8, 0.7, paste0("MMSE=", round(mmse_value, 4)), cex = 1.5, col = 3)
+
+# 4. MMSE-optimal design
+a <- optim(D0, mmse, lower = rep(0, n), upper = rep(1, n), method = "L-BFGS-B")
+D <- D4 <- a$par
+E <- as.matrix(dist(D4))
+R <- exp(-(E / theta)^2)
+L <- chol(R + 10^(-6) * diag(n))
+sa <- apply(cbind(test), 1, s)
+plot(test, sa, type = "l", xlab = "x", ylab = "RMSE", ylim = c(0, 0.7),
+     main = "MMSE-optimal Design", cex.main = 2, cex.lab = 1.5, cex.axis = 1.5, lwd = 3)
+points(cbind(D4, 0), pch = 16, col = "blue", cex = 3)
+imse_value <- imse(D4)
+text(0.2, 0.7, paste0("IMSE=", round(imse_value, 4)), cex = 1.5, col = 2)
+mmse_value <- mmse(D4)
+text(0.8, 0.7, paste0("MMSE=", round(mmse_value, 4)), cex = 1.5, col = 3)
+
+par(mfrow = c(1, 1))
+```
+
+# Relative Efficiency Across Different Theta Values
+
+```{r relative_efficiency, fig.width=12, fig.height=10}
+ev <- seq(0.01, 0.4, length = 100)
+IR <- MR <- matrix(0, nrow = 100, ncol = 4)
+
+for (i in 1:100) {
+  theta <- ev[i]
+  IR[i, ] <- c(imse(D1), imse(D2), imse(D3), imse(D4))
+  MR[i, ] <- c(mmse(D1), mmse(D2), mmse(D3), mmse(D4))
+}
+
+par(mar = c(5, 5, 4, 2))
+par(mfrow = c(2, 2))
+
+matplot(ev, IR, type = "l", xlab = expression(theta), ylab = "IMSE", lwd = 3,
+        main = "IMSE", cex.main = 2, cex.lab = 1.5, cex.axis = 1.5)
+legend("topright", legend = c("equi-spaced", "Chebyshev", "IMSE-optimal", "MMSE-optimal"),
+       lty = 1:4, col = 1:4, lwd = 3, bty = "n", cex = 1.2)
+
+matplot(ev, MR, type = "l", xlab = expression(theta), ylab = "MMSE", lwd = 3,
+        main = "MMSE", cex.main = 2, cex.lab = 1.5, cex.axis = 1.5)
+
+IRR <- sweep(IR, 1, apply(IR, 1, min), "/")
+matplot(ev, 1/IRR, type = "l", xlab = expression(theta), ylab = "RE", lwd = 3,
+        main = "Relative Efficiency (IMSE)", cex.main = 2, cex.lab = 1.5, cex.axis = 1.5)
+
+MRR <- sweep(MR, 1, apply(MR, 1, min), "/")
+matplot(ev, 1/MRR, type = "l", xlab = expression(theta), ylab = "RE", lwd = 3,
+        main = "Relative Efficiency (MMSE)", cex.main = 2, cex.lab = 1.5, cex.axis = 1.5)
+
+par(mfrow = c(1, 1))
+```
+
+# Maximum Entropy Designs
+
+```{r max_entropy, fig.width=14, fig.height=5}
+set.seed(1)
+n <- 10
+theta <- 0.1
+N <- 301
+test <- seq(0, 1, length = N)
+
+r <- function(x) exp(-((x - D) / theta)^2)
+s <- function(x) {
+  a <- forwardsolve(t(L), r(x))
+  return(sqrt(max(1 - sum(a^2), 0)))
+}
+
+par(mfrow = c(1, 3))
+
+# IMSE-optimal design
+D0 <- ((1:n) - 0.5) / n
+a <- optim(D0, imse, lower = rep(0, n), upper = rep(1, n), method = "L-BFGS-B")
+D <- D3 <- a$par
+E <- as.matrix(dist(D3))
+R <- exp(-(E / theta)^2)
+L <- chol(R + 10^(-6) * diag(n))
+sa <- apply(cbind(test), 1, s)
+plot(test, sa, type = "l", xlab = "x", ylab = "RMSE", ylim = c(0, 0.7),
+     main = "IMSE-optimal Design", cex.main = 2.5, cex.lab = 1.5, cex.axis = 1.5, lwd = 3)
+points(cbind(D3, 0), pch = 16, col = "blue", cex = 4)
+text(0.5, 0.7, paste0("Entropy=", round(ent(D3), 4)), cex = 2, col = 4)
+text(0.5, 0.65, paste0("IMSE=", round(imse(D3), 4)), cex = 2, col = 2)
+text(0.5, 0.6, paste0("MMSE=", round(mmse(D3), 4)), cex = 2, col = 3)
+
+# MMSE-optimal design
+a <- optim(D0, mmse, lower = rep(0, n), upper = rep(1, n), method = "L-BFGS-B")
+D <- D4 <- a$par
+E <- as.matrix(dist(D4))
+R <- exp(-(E / theta)^2)
+L <- chol(R + 10^(-6) * diag(n))
+sa <- apply(cbind(test), 1, s)
+plot(test, sa, type = "l", xlab = "x", ylab = "RMSE", ylim = c(0, 0.7),
+     main = "MMSE-optimal Design", cex.main = 2.5, cex.lab = 1.5, cex.axis = 1.5, lwd = 3)
+points(cbind(D4, 0), pch = 16, col = "blue", cex = 4)
+text(0.5, 0.7, paste0("Entropy=", round(ent(D4), 4)), cex = 2, col = 4)
+text(0.5, 0.65, paste0("IMSE=", round(imse(D4), 4)), cex = 2, col = 2)
+text(0.5, 0.6, paste0("MMSE=", round(mmse(D4), 4)), cex = 2, col = 3)
+
+# Maximum entropy design
+D0 <- ((1:n) - 1) / (n - 1)
+a <- optim(D0, negent, lower = rep(0, n), upper = rep(1, n), method = "L-BFGS-B")
+D <- D5 <- a$par
+E <- as.matrix(dist(D5))
+R <- exp(-(E / theta)^2)
+L <- chol(R + 10^(-6) * diag(n))
+sa <- apply(cbind(test), 1, s)
+plot(test, sa, type = "l", xlab = "x", ylab = "RMSE", ylim = c(0, 0.7),
+     main = "Maximum Entropy Design", cex.main = 2.5, cex.lab = 1.5, cex.axis = 1.5, lwd = 3)
+points(cbind(D5, 0), pch = 16, col = "blue", cex = 4)
+text(0.5, 0.7, paste0("Entropy=", round(ent(D5), 4)), cex = 2, col = 4)
+text(0.5, 0.65, paste0("IMSE=", round(imse(D5), 4)), cex = 2, col = 2)
+text(0.5, 0.6, paste0("MMSE=", round(mmse(D5), 4)), cex = 2, col = 3)
+
+par(mfrow = c(1, 1))
+```
+
+# Summary
+
+This chapter covered:
+
+1. **IMSE criterion** - Integrated Mean Squared Error for overall prediction accuracy
+2. **MMSE criterion** - Maximum Mean Squared Error for worst-case prediction
+3. **Maximum entropy designs** - Maximizing information content
+4. **Relative efficiency** - Comparing design performance across different lengthscale parameters
+
+Key findings:
+- Different design criteria lead to different optimal designs
+- Equi-spaced designs perform reasonably well across many scenarios
+- Chebyshev designs are optimal for polynomial interpolation
+- IMSE and MMSE optimal designs differ near boundaries

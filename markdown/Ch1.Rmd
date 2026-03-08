@@ -1,0 +1,136 @@
+---
+title: "Chapter 1: Introduction"
+author: "Youngseo Cho"
+date: "`r Sys.Date()`"
+output:
+  pdf_document:
+    toc: true
+    number_sections: true
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE, warning = FALSE, message = FALSE,
+                      fig.width = 10, fig.height = 6)
+```
+
+# Introduction
+
+This chapter covers different objectives of experiments and introduces the concept of experimental design for data science.
+
+**Citation**: V. R. Joseph (2026). *Experimental Design for Data Science and Engineering*. CRC Press.
+
+# Different Objectives of Experiments
+
+```{r objectives, fig.height=10, fig.width=10}
+library(support)
+
+par(mar = c(5, 5, 4, 2))
+par(mfrow = c(2, 2))
+
+# Common parameters
+x <- seq(0, 1, length = 301)
+n <- 15
+
+# 1. Approximate a rough function
+y <- sin(10 * pi * x) / (1 + 64 * (x - 0.5)^2)
+plot(x, y, type = "l", axes = FALSE, xlab = "", ylab = "", lwd = 3, col = 1,
+     ylim = c(min(y) - 0.05, max(y)), main = "Approximate a Rough Function",
+     cex.main = 2)
+D <- ((1:n) - 0.5) / n  # Equi-spaced design
+points(cbind(D, min(y) - 0.05), pch = 16, cex = 2, lwd = 3, col = "blue")
+
+# 2. Approximate a smooth function
+y <- 1 / (1 + 64 * (x - 0.5)^2)
+plot(x, y, type = "l", axes = FALSE, xlab = "", ylab = "", lwd = 3, col = 1,
+     ylim = c(min(y) - 0.05, max(y)), main = "Approximate a Smooth Function",
+     cex.main = 2)
+D <- qbeta(((1:n) - 0.5) / n, 0.5, 0.5)  # Chebyshev-like design
+points(cbind(D, min(y) - 0.05), pch = 16, cex = 2, lwd = 3, col = "blue")
+
+# 3. Optimization
+n1 <- n * 2/3
+n2 <- n / 3
+y <- 2/3 * dbeta(x, 2, 10) + 1/3 * dbeta(x, 10, 2)
+plot(x, y, type = "l", axes = FALSE, xlab = "", ylab = "", lwd = 3, col = 1,
+     ylim = c(min(y) - 0.05, max(y)), main = "Optimization", cex.main = 2)
+D0 <- ((1:n2) - 0.5) / n2
+D <- c(D0, qbeta(((1:n1) - 0.5) / n1, 2, 10))
+points(cbind(D, min(y) - 0.05), pch = 16, cex = 2, lwd = 3, col = "blue")
+
+# 4. Uncertainty propagation
+y <- 2/3 * dbeta(x, 2, 10) + 1/3 * dbeta(x, 10, 2)
+plot(x, y, type = "l", axes = FALSE, xlab = "", ylab = "", lwd = 3, col = 1,
+     ylim = c(min(y) - 0.05, max(y)), main = "Uncertainty Propagation", cex.main = 2)
+x_samp <- rbeta(1000 * n1, 2, 10)
+x_samp <- c(x_samp, rbeta(1000 * n2, 10, 2))
+a <- sp(n, 1, dist.samp = cbind(x_samp))
+D <- a$sp
+points(cbind(D, min(y) - 0.05), pch = 16, cex = 2, lwd = 3, col = "blue")
+
+par(mfrow = c(1, 1))
+```
+
+# Linear Regression vs Gaussian Process
+
+```{r lr_vs_gp, fig.width=12, fig.height=5}
+library(rkriging)
+
+set.seed(1)
+n <- 10
+x <- rep(c(0, 1), c(n/2, n/2))
+f <- function(x) sin(10 * pi * x) / (1 + 64 * (x - 0.25)^2) + x^2
+y <- f(x) + 0.1 * rnorm(n)
+
+par(mfrow = c(1, 2))
+l <- -0.1
+u <- 1.1
+test <- seq(l, u, 0.001)
+truey <- f(test)
+
+# Linear Regression
+plot(test, truey, type = "l", xlim = c(l, u), ylim = c(-0.5, 1.5),
+     main = "Linear Regression", xlab = "x", ylab = "y", cex.main = 2, cex.lab = 1.5)
+a.lm <- lm(y ~ x)
+pred <- predict.lm(a.lm, newdata = data.frame(x = test), interval = "prediction")
+low <- pred[, 2]
+up <- pred[, 3]
+polygon(c(test, rev(test)), c(low, rev(up)), col = "pink", border = NA, lwd = 2)
+lines(test, low, lwd = 2, col = "pink")
+lines(test, up, lwd = 2, col = "pink")
+lines(test, pred[, 1], col = 3, lwd = 3, lty = 2)
+lines(test, truey, xlim = c(l, u), lwd = 2)
+points(x, y, pch = 16, col = "blue", cex = 2)
+legend("topleft", legend = c("truth", "prediction"), lty = c(1, 2),
+       col = c(1, 3), lwd = c(2, 3), bty = "n", cex = 1.5)
+
+# Gaussian Process Regression
+a.gp <- Fit.Kriging(x, y, interpolation = FALSE, fit = TRUE, model = "OK",
+                    kernel.parameters = list(type = "Gaussian"))
+pred <- Predict.Kriging(a.gp, test)
+plot(test, truey, type = "l", xlim = c(l, u), ylim = c(-0.5, 1.5),
+     main = "Gaussian Process Regression", xlab = "x", ylab = "y",
+     cex.main = 2, cex.lab = 1.5)
+low <- pred$mean - 2 * pred$sd
+up <- pred$mean + 2 * pred$sd
+polygon(c(test, rev(test)), c(low, rev(up)), col = "pink", border = NA, lwd = 2)
+lines(test, low, lwd = 2, col = "pink")
+lines(test, up, lwd = 2, col = "pink")
+lines(test, pred$mean, col = 3, lwd = 3, lty = 2)
+lines(test, truey, xlim = c(l, u), lwd = 2)
+points(x, y, pch = 16, col = "blue", cex = 2)
+legend("topleft", legend = c("truth", "prediction"), lty = c(1, 2),
+       col = c(1, 3), lwd = c(2, 3), bty = "n", cex = 1.5)
+
+par(mfrow = c(1, 1))
+```
+
+# Summary
+
+This chapter introduced the fundamental concepts of experimental design:
+
+1. **Space-filling designs** for approximating rough functions
+2. **Non-uniform designs** (Chebyshev nodes) for smooth function approximation
+3. **Adaptive designs** for optimization problems
+4. **Support points** for uncertainty propagation
+
+The comparison between linear regression and Gaussian process regression demonstrates the importance of choosing appropriate models for different types of data.
