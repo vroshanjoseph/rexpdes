@@ -18,7 +18,7 @@ rexpdes/
 │   ├── Ch5.R       # Representative Points
 │   ├── Ch6.R       # Screening Designs
 │   ├── Ch7.R       # Sequential Designs
-│   ├── Ch8.R       # Multi-level and Mixture Designs
+│   ├── Ch8.R       # Fractional Factorial Designs
 │   ├── Ch9.R       # Model Calibration
 │   ├── Ch10.R      # Data Subsampling
 │   └── Ch11.R      # Data Analysis
