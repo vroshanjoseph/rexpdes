@@ -893,7 +893,7 @@ comined <- function(n, p, tau, constraint, n.aug, auto.scale = F,
   min.dist <- min(dist(samp))
   min.ddist <- Inf # dimensional minimum
   for (i in 1:p){
-    ddist <- min(dist(samp[,p]))
+    ddist <- min(dist(samp[,i]))
     if (ddist < min.ddist) min.ddist <- ddist
   }
   samp.gval <- matrix(t(apply(samp,1,constraint)), nrow=nrow(samp))
@@ -997,6 +997,14 @@ comined <- function(n, p, tau, constraint, n.aug, auto.scale = F,
   
 }
 
+# Run CoMinED (the intermediate plots it draws are not included in the book)
+set.seed(20210329)
+layout(matrix(c(1:8), nrow = 2, byrow = T))
+tau <- c(0,exp(c(1:7)),1e6)
+comined.output <- comined(n = 53, p = 2, tau = tau, constraint = constraint,
+                          n.aug = 5, auto.scale = F, s = 2, visualization = T,
+                          visualization.params = list(unit.scale=TRUE,contour=contour))
+
 par(mar=c(5,5,4,2))
 par(mfrow=c(1,2))
 cand=comined.output$cand
@@ -1010,14 +1018,6 @@ plot(cand.feasible, col = "green", pch = 16, cex = 0.75,
 for (i in 1:3) lines(contour$x1[i,], contour$x2[i,],col=2,lwd=2)
 par(mfrow=c(1,1))
 
-
-# The following visualization is not included in the book
-set.seed(20210329)
-layout(matrix(c(1:8), nrow = 2, byrow = T))
-tau <- c(0,exp(c(1:7)),1e6)
-comined.output <- comined(n = 53, p = 2, tau = tau, constraint = constraint,
-                          n.aug = 5, auto.scale = F, s = 2, visualization = T,
-                          visualization.params = list(unit.scale=TRUE,contour=contour))
 
 ############################################
 #Section 4.6.3 Continuous fidelity parameter
