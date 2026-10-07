@@ -527,7 +527,6 @@ cand=data.frame(x=seq(-1,1,length=301))
 a=optFederov(~ 1 + x + I(x^2)+I(x^3)+I(x^4)+I(x^5)+I(x^6)+I(x^7)+I(x^8)+I(x^9), nTrials=n,data=cand, approximate=FALSE)
 D=rep(c(a$design[,1]),re)
 D=(D+1)/2
-D=rep(D,re)
 e=rnorm(n*re,sd=.1)
 y=f(D)+e
 a=Fit.Kriging(D,y,interpolation=FALSE, kernel.parameters = list(type="Gaussian"))
